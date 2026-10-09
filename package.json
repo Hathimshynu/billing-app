@@ -1,0 +1,26 @@
+{
+  "name": "shopdesk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShopDesk — offline-first universal billing, POS and inventory platform",
+  "workspaces": [
+    "packages/*",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @shopdesk/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,css,md}\"",
+    "e2e": "npm run e2e -w @shopdesk/web"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

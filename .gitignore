@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+*.tsbuildinfo
+coverage/
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/playwright/.cache/
+
+# Env & secrets (never commit real secrets)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

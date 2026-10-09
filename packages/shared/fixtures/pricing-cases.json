@@ -1,0 +1,222 @@
+{
+  "description": "Cross-language pricing vectors. Executed by packages/shared (Vitest) and apps/api (PHPUnit). Expected values were verified by hand; both engines must match exactly.",
+  "cases": [
+    {
+      "name": "exclusive GST 18% intra-state",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 2, "unit_price": 100, "price_includes_tax": false, "tax": { "name": "GST 18%", "kind": "gst", "rate": 18 } }]
+      },
+      "expected": {
+        "gross_total": 200, "discount_total": 0, "taxable_total": 200, "tax_total": 36, "grand_total": 236, "round_off": 0,
+        "lines": [{ "key": "a", "taxable": 200, "tax_total": 36, "total": 236, "taxes": [{ "code": "CGST", "rate": 9, "amount": 18 }, { "code": "SGST", "rate": 9, "amount": 18 }] }],
+        "tax_breakup": [{ "code": "CGST", "rate": 9, "taxable": 200, "amount": 18 }, { "code": "SGST", "rate": 9, "taxable": 200, "amount": 18 }]
+      }
+    },
+    {
+      "name": "inclusive GST 18% back-calculation",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 118, "price_includes_tax": true, "tax": { "name": "GST 18%", "kind": "gst", "rate": 18 } }]
+      },
+      "expected": {
+        "gross_total": 118, "taxable_total": 100, "tax_total": 18, "tax_inclusive_total": 18, "tax_exclusive_total": 0, "grand_total": 118,
+        "lines": [{ "key": "a", "taxable": 100, "tax_total": 18, "total": 118 }]
+      }
+    },
+    {
+      "name": "loose rice by weight, tax exempt",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "rice", "quantity": 2.5, "unit_price": 65, "price_includes_tax": true, "tax": { "name": "Exempt", "kind": "exempt", "rate": 0 } }]
+      },
+      "expected": { "gross_total": 162.5, "taxable_total": 162.5, "tax_total": 0, "grand_total": 162.5, "total_quantity": 2.5 }
+    },
+    {
+      "name": "inclusive GST 12% with odd paise",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 3, "unit_price": 99.99, "price_includes_tax": true, "tax": { "name": "GST 12%", "kind": "gst", "rate": 12 } }]
+      },
+      "expected": {
+        "gross_total": 299.97, "taxable_total": 267.83, "tax_total": 32.14, "grand_total": 299.97,
+        "lines": [{ "key": "a", "taxable": 267.83, "tax_total": 32.14, "total": 299.97, "taxes": [{ "code": "CGST", "rate": 6, "amount": 16.07 }, { "code": "SGST", "rate": 6, "amount": 16.07 }] }]
+      }
+    },
+    {
+      "name": "line percent discount then GST 5%",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 1000, "price_includes_tax": false, "discount_type": "percent", "discount_value": 10, "tax": { "name": "GST 5%", "kind": "gst", "rate": 5 } }]
+      },
+      "expected": {
+        "gross_total": 1000, "line_discount_total": 100, "discount_total": 100, "taxable_total": 900, "tax_total": 45, "grand_total": 945,
+        "lines": [{ "key": "a", "line_discount": 100, "net": 900, "taxable": 900, "tax_total": 45, "total": 945 }]
+      }
+    },
+    {
+      "name": "bill amount discount allocated across mixed tax lines",
+      "input": {
+        "supply_type": "intra",
+        "bill_discount_type": "amount",
+        "bill_discount_value": 30,
+        "lines": [
+          { "key": "a", "quantity": 2, "unit_price": 50, "price_includes_tax": false, "tax": { "name": "GST 18%", "kind": "gst", "rate": 18 } },
+          { "key": "b", "quantity": 1, "unit_price": 200, "price_includes_tax": false, "tax": { "name": "GST 5%", "kind": "gst", "rate": 5 } }
+        ]
+      },
+      "expected": {
+        "gross_total": 300, "bill_discount_total": 30, "discount_total": 30, "taxable_total": 270, "tax_total": 25.2, "grand_total": 295.2,
+        "lines": [
+          { "key": "a", "bill_discount": 10, "taxable": 90, "tax_total": 16.2, "total": 106.2 },
+          { "key": "b", "bill_discount": 20, "taxable": 180, "tax_total": 9, "total": 189 }
+        ]
+      }
+    },
+    {
+      "name": "inter-state IGST with compensation cess",
+      "input": {
+        "supply_type": "inter",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 500, "price_includes_tax": false, "tax": { "name": "GST 28% + Cess 12%", "kind": "gst", "rate": 28, "cess_rate": 12 } }]
+      },
+      "expected": {
+        "taxable_total": 500, "tax_total": 200, "grand_total": 700,
+        "lines": [{ "key": "a", "taxes": [{ "code": "IGST", "rate": 28, "amount": 140 }, { "code": "CESS", "rate": 12, "amount": 60 }] }]
+      }
+    },
+    {
+      "name": "round off to nearest rupee",
+      "input": {
+        "supply_type": "intra",
+        "round_off": "1.00",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 200.34, "price_includes_tax": false, "tax": { "name": "GST 18%", "kind": "gst", "rate": 18 } }]
+      },
+      "expected": { "total_before_round": 236.4, "round_off": -0.4, "grand_total": 236, "tax_total": 36.06 }
+    },
+    {
+      "name": "bill discount remainder goes to first line",
+      "input": {
+        "supply_type": "none",
+        "bill_discount_type": "amount",
+        "bill_discount_value": 1,
+        "lines": [
+          { "key": "a", "quantity": 1, "unit_price": 10, "price_includes_tax": false, "tax": null },
+          { "key": "b", "quantity": 1, "unit_price": 10, "price_includes_tax": false, "tax": null },
+          { "key": "c", "quantity": 1, "unit_price": 10, "price_includes_tax": false, "tax": null }
+        ]
+      },
+      "expected": {
+        "grand_total": 29,
+        "lines": [{ "key": "a", "bill_discount": 0.34, "total": 9.66 }, { "key": "b", "bill_discount": 0.33, "total": 9.67 }, { "key": "c", "bill_discount": 0.33, "total": 9.67 }]
+      }
+    },
+    {
+      "name": "taxable service charge",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "food", "quantity": 1, "unit_price": 1000, "price_includes_tax": false, "tax": { "name": "GST 5%", "kind": "gst", "rate": 5 } }],
+        "charges": [{ "key": "service", "name": "Service Charge", "amount": 100, "tax": { "name": "GST 5%", "kind": "gst", "rate": 5 } }]
+      },
+      "expected": {
+        "charges_total": 100, "taxable_total": 1100, "tax_total": 55, "tax_exclusive_total": 55, "grand_total": 1155,
+        "charges": [{ "key": "service", "taxable": 100, "tax_total": 5, "total": 105 }]
+      }
+    },
+    {
+      "name": "custom multi-component tax",
+      "input": {
+        "supply_type": "none",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 100, "price_includes_tax": false, "tax": { "name": "VAT + Municipal", "kind": "custom", "rate": 0, "components": [{ "code": "VAT", "name": "VAT", "rate": 5 }, { "code": "MUN", "name": "Municipal", "rate": 2 }] } }]
+      },
+      "expected": { "tax_total": 7, "grand_total": 107 }
+    },
+    {
+      "name": "GST 0.25% splits into 0.125% components",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 10000, "price_includes_tax": true, "tax": { "name": "GST 0.25%", "kind": "gst", "rate": 0.25 } }]
+      },
+      "expected": {
+        "taxable_total": 9975.06, "tax_total": 24.94, "grand_total": 10000,
+        "lines": [{ "key": "a", "taxes": [{ "code": "CGST", "rate": 0.125, "amount": 12.47 }, { "code": "SGST", "rate": 0.125, "amount": 12.47 }] }]
+      }
+    },
+    {
+      "name": "three decimal quantity",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 0.125, "unit_price": 1234.56, "price_includes_tax": false, "tax": null }]
+      },
+      "expected": { "gross_total": 154.32, "grand_total": 154.32 }
+    },
+    {
+      "name": "half paisa price rounds away from zero",
+      "input": {
+        "supply_type": "intra",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 1.005, "price_includes_tax": false, "tax": null }]
+      },
+      "expected": { "gross_total": 1.01, "grand_total": 1.01 }
+    },
+    {
+      "name": "union territory uses UTGST",
+      "input": {
+        "supply_type": "union_territory",
+        "lines": [{ "key": "a", "quantity": 1, "unit_price": 100, "price_includes_tax": false, "tax": { "name": "GST 12%", "kind": "gst", "rate": 12 } }]
+      },
+      "expected": {
+        "grand_total": 112,
+        "lines": [{ "key": "a", "taxes": [{ "code": "CGST", "rate": 6, "amount": 6 }, { "code": "UTGST", "rate": 6, "amount": 6 }] }]
+      }
+    }
+  ],
+  "jewellery": [
+    {
+      "name": "22K necklace",
+      "input": { "net_weight": 10, "rate_per_gram": 6500, "making_charge_type": "percent", "making_charge_value": 12, "wastage_type": "percent", "wastage_value": 2, "stone_charges": 1500, "other_charges": 0, "discount": 600 },
+      "expected": { "metal_value": 65000, "making_charges": 7800, "wastage_charges": 1300, "stone_charges": 1500, "other_charges": 0, "discount": 600, "taxable_value": 75000 }
+    },
+    {
+      "name": "per-gram making on fractional weight",
+      "input": { "net_weight": 4.256, "rate_per_gram": 7215.5, "making_charge_type": "per_gram", "making_charge_value": 450, "wastage_type": "fixed", "wastage_value": 250, "stone_charges": 0, "other_charges": 100, "discount": 0 },
+      "expected": { "metal_value": 30709.17, "making_charges": 1915.2, "wastage_charges": 250, "taxable_value": 32974.37 }
+    }
+  ],
+  "old_gold": [
+    {
+      "name": "exchange with stone and melting deduction",
+      "input": { "gross_weight": 12.5, "stone_weight": 0.5, "rate_per_gram": 6000, "deduction_percent": 2 },
+      "expected": { "net_weight": 12, "deduction_weight": 0.24, "effective_weight": 11.76, "value": 70560 }
+    }
+  ],
+  "numbering": [
+    { "format": "INV-{YYYY}-{SEQ:6}", "sequence": 1, "date": "2026-10-08", "expected": "INV-2026-000001", "period": "2026" },
+    { "format": "{FY}/{SEQ:4}", "sequence": 45, "date": "2027-02-10", "expected": "2026-27/0045", "period": "FY2026" },
+    { "format": "S{DEVICE}/{FYY}/{SEQ}", "sequence": 7, "date": "2026-04-01", "device": "C2", "expected": "SC2/2627/000007", "period": "FY2026" },
+    { "format": "B{YY}{MM}-{SEQ:3}", "sequence": 12, "date": "2026-01-31", "expected": "B2601-012", "period": "2026-01" },
+    { "format": "{STORE}-{SEQ:5}", "sequence": 99, "date": "2026-03-31", "store": "MAIN", "expected": "MAIN-00099", "period": "all" }
+  ],
+  "allocation": [
+    { "total": 100, "weights": [1, 1, 1], "expected": [34, 33, 33] },
+    { "total": -100, "weights": [1, 1, 1], "expected": [-34, -33, -33] },
+    { "total": 10, "weights": [0, 0], "expected": [5, 5] },
+    { "total": 7, "weights": [3, 1], "expected": [5, 2] },
+    { "total": 3000, "weights": [10000, 20000], "expected": [1000, 2000] }
+  ],
+  "scaled": [
+    { "value": "1.005", "scale": 2, "expected": 101 },
+    { "value": 1.005, "scale": 2, "expected": 101 },
+    { "value": -2.5, "scale": 0, "expected": -3 },
+    { "value": 2.5, "scale": 0, "expected": 3 },
+    { "value": "0.0049", "scale": 2, "expected": 0 },
+    { "value": 1234.5678, "scale": 3, "expected": 1234568 },
+    { "value": "-0.005", "scale": 2, "expected": -1 }
+  ],
+  "div_round": [
+    { "a": 5, "b": 2, "expected": 3 },
+    { "a": -5, "b": 2, "expected": -3 },
+    { "a": 7, "b": 3, "expected": 2 },
+    { "a": 8, "b": 3, "expected": 3 },
+    { "a": 1, "b": 3, "expected": 0 },
+    { "a": -1, "b": 2, "expected": -1 }
+  ]
+}
