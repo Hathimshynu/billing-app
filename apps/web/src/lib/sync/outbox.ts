@@ -50,7 +50,7 @@ export async function enqueue(input: EnqueueInput): Promise<SyncQueueItem> {
 /**
  * Run a local write transaction that includes the outbox, then wake the sync engine.
  */
-export async function mutate<T>(tables: Array<Table<any, any>>, work: () => Promise<T>): Promise<T> {
+export async function mutate<T>(tables: Array<Table>, work: () => Promise<T>): Promise<T> {
   const database = db();
   const result = await database.transaction('rw', [...tables, database.sync_queue, database.meta], work);
   listeners.forEach((l) => l());

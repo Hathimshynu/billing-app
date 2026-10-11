@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
@@ -70,6 +70,7 @@ export default function PosPage() {
   const can = useCan();
   const hasModule = useModules();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const business = useBusiness();
   const mobile = useIsMobile();
   const data = usePosData();
@@ -301,6 +302,14 @@ export default function PosPage() {
       toast.error(error instanceof Error ? error.message : String(error));
     }
   };
+
+  // Opened from the Tables screen: load that table's running order once products are available.
+  const tableParam = searchParams.get('table');
+  useEffect(() => {
+    if (!tableParam || data.loading) return;
+    void loadTable(tableParam).then(() => setSearchParams({}, { replace: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableParam, data.loading]);
 
   /* -------------------------------------------------------------- payment */
 

@@ -47,6 +47,7 @@ class SaleService
         private readonly NumberingService $numbering,
         private readonly AuditLogger $audit,
         private readonly NotificationService $notifications,
+        private readonly SaleIntegrity $integrity,
     ) {}
 
     /** @return array<string, mixed> */
@@ -120,7 +121,7 @@ class SaleService
             'payments' => ['nullable', 'array', 'max:20'],
             'payments.*.id' => ['required', 'uuid'],
             'payments.*.method' => ['required', Rule::in($methods)],
-            'payments.*.amount' => ['required', 'numeric'],
+            'payments.*.amount' => ['required', 'numeric', 'min:0'],
             'payments.*.reference' => ['nullable', 'string', 'max:100'],
             'payments.*.tendered' => ['nullable', 'numeric', 'min:0'],
             'payments.*.change' => ['nullable', 'numeric', 'min:0'],
@@ -215,11 +216,18 @@ class SaleService
             'round_off' => $data['round_off_mode'] ?? 'none',
             'decimals' => $decimals,
         ]);
+        // The server calculation is authoritative for every stored amount. A device total that
+        // differs is kept in `meta` for review, never trusted for the ledger or refunds.
         $clientTotal = $data['grand_total'] ?? null;
         if ($clientTotal !== null && ! Money::equals($clientTotal, $pricing['grand_total'], $decimals)) {
             $flags[] = 'totals_mismatch';
         }
-        $grandTotal = $clientTotal !== null ? Money::round($clientTotal, $decimals) : $pricing['grand_total'];
+        foreach (array_values($data['items']) as $index => $item) {
+            if (isset($item['total']) && ! Money::equals($item['total'], $pricing['lines'][$index]['total'], $decimals)) {
+                $flags[] = 'totals_mismatch';
+            }
+        }
+        $grandTotal = $pricing['grand_total'];
 
         // Payments
         $payments = $isInvoice ? ($data['payments'] ?? []) : [];
@@ -260,7 +268,18 @@ class SaleService
                     }
                 }
             }
+            $items = array_values($data['items']);
+            array_push(
+                $flags,
+                ...$this->integrity->priceFlags($items, $products),
+                ...$this->integrity->taxFlags($items, $products),
+                ...$this->integrity->couponFlags($data['coupon_code'] ?? null, $pricing['gross_total'] - $pricing['line_discount_total'], $data['invoice_date']),
+            );
             foreach ($data['items'] as $item) {
+                // Negative lines are returns inside an invoice; they need the refund permission.
+                if ((float) $item['quantity'] < 0 && ! $this->tenant->can('sales.refund')) {
+                    $flags[] = 'negative_line_without_permission';
+                }
                 $product = $item['product_id'] ? $products[$item['product_id']] : null;
                 if ($product && $product->min_selling_price && $item['unit_price'] < $product->min_selling_price && ! $this->tenant->can('sales.price_override')) {
                     $flags[] = 'below_minimum_price';
@@ -272,6 +291,11 @@ class SaleService
                     }
                 }
             }
+        }
+        $loyalty = ['earned' => 0, 'redeemed' => 0, 'flags' => []];
+        if ($isInvoice) {
+            $loyalty = $this->integrity->loyalty($customer, $payments, $grandTotal, (int) ($data['loyalty_points_redeemed'] ?? 0), $decimals);
+            array_push($flags, ...$loyalty['flags']);
         }
         $flags = array_values(array_unique($flags));
 
@@ -339,14 +363,21 @@ class SaleService
             'payment_status' => $paymentStatus,
             'tax_breakup' => $pricing['tax_breakup'],
             'coupon_code' => $data['coupon_code'] ?? null,
-            'loyalty_points_earned' => $isInvoice ? (int) ($data['loyalty_points_earned'] ?? 0) : 0,
-            'loyalty_points_redeemed' => $isInvoice ? (int) ($data['loyalty_points_redeemed'] ?? 0) : 0,
+            'loyalty_points_earned' => $loyalty['earned'],
+            'loyalty_points_redeemed' => $loyalty['redeemed'],
             'converted_from_id' => $data['converted_from_id'] ?? null,
             'valid_until' => $data['valid_until'] ?? null,
             'notes' => $data['notes'] ?? null,
             'created_by' => $userId,
             'review_flags' => $flags,
-            'meta' => in_array('totals_mismatch', $flags, true) ? ['server_grand_total' => $pricing['grand_total'], 'client_grand_total' => $clientTotal] : null,
+            'meta' => in_array('totals_mismatch', $flags, true) || $loyalty['flags'] !== []
+                ? array_filter([
+                    'server_grand_total' => $pricing['grand_total'],
+                    'client_grand_total' => $clientTotal,
+                    'client_loyalty_earned' => $data['loyalty_points_earned'] ?? null,
+                    'client_loyalty_redeemed' => $data['loyalty_points_redeemed'] ?? null,
+                ], fn ($v) => $v !== null)
+                : null,
         ]);
 
         foreach (array_values($data['items']) as $index => $item) {
@@ -373,13 +404,15 @@ class SaleService
                 'discount_value' => $item['discount_value'] ?? null,
                 'tax_rate_id' => $item['tax_rate_id'] ?? null,
                 'tax' => $item['tax'] ?? null,
-                'gross' => $item['gross'] ?? $line['gross'],
-                'line_discount' => $item['line_discount'] ?? $line['line_discount'],
-                'bill_discount' => $item['bill_discount'] ?? $line['bill_discount'],
-                'taxable' => $item['taxable'] ?? $line['taxable'],
-                'taxes' => $item['taxes'] ?? $line['taxes'],
-                'tax_total' => $item['tax_total'] ?? $line['tax_total'],
-                'total' => $item['total'] ?? $line['total'],
+                // Line amounts always come from the server calculation: refunds are pro-rated
+                // from them, so device-supplied values must never reach the database.
+                'gross' => $line['gross'],
+                'line_discount' => $line['line_discount'],
+                'bill_discount' => $line['bill_discount'],
+                'taxable' => $line['taxable'],
+                'taxes' => $line['taxes'],
+                'tax_total' => $line['tax_total'],
+                'total' => $line['total'],
                 'modifiers' => $item['modifiers'] ?? [],
                 'jewellery' => $item['jewellery'] ?? null,
                 'warranty_months' => $item['warranty_months'] ?? $product?->warranty_months,
@@ -524,8 +557,31 @@ class SaleService
         if (in_array('totals_mismatch', $flags, true)) {
             $this->notifications->notify('totals_mismatch', "Invoice {$sale->invoice_number} needs review", 'The invoice totals recorded on the device differ from the server calculation.', 'critical', 'sale', $sale->id);
         }
+        $review = [
+            'price_override_without_permission' => 'Items were sold below the catalogue price without the price-override permission.',
+            'tax_mismatch' => 'The tax rate on the invoice differs from the product tax rate.',
+            'negative_line_without_permission' => 'The invoice contains returned (negative) lines entered without the refund permission.',
+            'loyalty_over_redeemed' => 'More loyalty points were redeemed than the customer had.',
+            'loyalty_invalid' => 'Loyalty points were redeemed without a customer or while loyalty is disabled.',
+            'invalid_coupon' => 'A coupon that was invalid, expired or used up was applied.',
+        ];
+        foreach ($review as $flag => $body) {
+            if (in_array($flag, $flags, true)) {
+                $this->notifications->notify($flag, "Invoice {$sale->invoice_number} needs review", $body, 'warning', 'sale', $sale->id);
+            }
+        }
         if (in_array('expired_batch_sold', $flags, true)) {
             $this->notifications->notify('expired_batch_sold', "Expired stock sold on {$sale->invoice_number}", 'An expired batch was sold without the required permission.', 'critical', 'sale', $sale->id);
+        }
+    }
+
+    private function addFlag(Sale $sale, string $flag): void
+    {
+        $flags = $sale->review_flags ?? [];
+        if (! in_array($flag, $flags, true)) {
+            $flags[] = $flag;
+            $sale->review_flags = $flags;
+            $sale->save();
         }
     }
 
@@ -535,6 +591,12 @@ class SaleService
         foreach ($item['serial_ids'] ?? [] as $serialId) {
             $serial = ProductSerial::query()->find($serialId);
             if (! $serial) {
+                continue;
+            }
+            if (! $product || $serial->product_id !== $product->id || (isset($item['variant_id']) && $serial->variant_id !== null && $serial->variant_id !== $item['variant_id'])) {
+                // An IMEI of a different product cannot be sold on this line.
+                $this->addFlag($sale, 'serial_mismatch');
+
                 continue;
             }
             if ($serial->status === 'sold' && $serial->sale_id !== $sale->id) {
@@ -555,7 +617,7 @@ class SaleService
 
                 continue;
             }
-            $months = $saleItem->warranty_months ?? $serial->warranty_months ?? $product?->warranty_months;
+            $months = $saleItem->warranty_months ?? $serial->warranty_months ?? $product->warranty_months;
             $serial->status = 'sold';
             $serial->sale_id = $sale->id;
             $serial->sale_item_id = $saleItem->id;

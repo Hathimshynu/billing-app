@@ -82,6 +82,13 @@ class SaleReturnService
         if (! $sale) {
             throw SyncRejected::dependency('Original invoice');
         }
+        if (! $sale->isInvoice()) {
+            // Quotations, estimates and challans were never paid: nothing can be refunded.
+            throw SyncRejected::invalid(['sale_id' => ["{$sale->invoice_number} is not an invoice and cannot be returned."]]);
+        }
+        // A return made offline while another device cancelled the same invoice is kept (money may
+        // have changed hands) but flagged, because the cancellation already reversed stock and balance.
+        $returnedAfterCancel = $sale->status === 'cancelled';
         $decimals = (int) $this->tenant->business()->currency_decimals;
 
         $number = $this->numbering->finalize(
@@ -203,6 +210,11 @@ class SaleReturnService
             if (! in_array($return->refund_method, ['store_credit', 'exchange'], true)) {
                 $this->ledger->customer($common + ['id' => $ledgerIds['refund'] ?? null, 'type' => 'refund', 'debit' => $return->total]);
             }
+        }
+        if ($returnedAfterCancel) {
+            $sale->review_flags = array_values(array_unique([...($sale->review_flags ?? []), 'returned_after_cancel']));
+            $sale->save();
+            $this->notifications->notify('returned_after_cancel', "Return on cancelled invoice {$sale->invoice_number}", "Credit note {$return->return_number} was issued for an invoice that is already cancelled. Check for a double refund.", 'critical', 'sale_return', $return->id);
         }
         if ($overReturn) {
             $flags = $sale->review_flags ?? [];

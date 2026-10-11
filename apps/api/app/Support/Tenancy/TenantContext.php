@@ -103,6 +103,17 @@ final class TenantContext
         return in_array($permission, $this->permissions, true);
     }
 
+    /** Members restricted to certain stores (business_users.store_ids) may only work in those. */
+    public function canAccessStore(?string $storeId): bool
+    {
+        if ($storeId === null || ! $this->member) {
+            return true;
+        }
+        $allowed = $this->member->store_ids;
+
+        return ! is_array($allowed) || $allowed === [] || in_array($storeId, $allowed, true);
+    }
+
     /** @throws AuthorizationException */
     public function authorize(string $permission): void
     {

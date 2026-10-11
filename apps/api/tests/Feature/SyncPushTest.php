@@ -159,8 +159,11 @@ class SyncPushTest extends TestCase
             ->assertJsonCount(1, 'accepted')
             ->assertJsonPath('accepted.0.result.review_flags.0', 'totals_mismatch');
 
+        // The server calculation is authoritative (ledger and refunds use it); the device's figure
+        // is kept for the reviewer.
         $sale = $this->inTenant($business, fn () => Sale::query()->find($saleId));
-        $this->assertSame(90.0, $sale->grand_total, 'The amount actually charged is preserved');
+        $this->assertSame(100.0, $sale->grand_total);
+        $this->assertEquals(90, $sale->meta['client_grand_total']);
         $this->assertEquals(100, $sale->meta['server_grand_total']);
     }
 }

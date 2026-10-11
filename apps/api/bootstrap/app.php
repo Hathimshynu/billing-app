@@ -65,7 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return $isApi($request) ? $json('Too many requests. Please slow down.', 429) : null;
         });
         $exceptions->render(function (ApiException $e, Request $request) use ($json) {
-            return $json($e->getMessage(), $e->status(), $e->errors());
+            return $json($e->getMessage(), $e->status(), $e->errors(), $e->errorCode() ? ['code' => $e->errorCode()] : []);
         });
         $exceptions->render(function (SyncRejected $e, Request $request) use ($json) {
             $status = match ($e->errorCode) {

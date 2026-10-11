@@ -62,7 +62,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onSaved }: { 
         </Button>
       }
     >
-      <form onSubmit={(ev) => (ev.preventDefault(), void submit())}>
+      <form onSubmit={(ev) => { ev.preventDefault(); void submit(); }}>
         <FormGrid>
           <FormRow label={t('customer.name', 'Name')} htmlFor="cf-name" error={e.name?.message} required>
             <Input id="cf-name" autoFocus {...register('name')} />
@@ -148,7 +148,7 @@ export function SupplierFormDialog({ open, onOpenChange, supplier, onSaved }: { 
         </Button>
       }
     >
-      <form onSubmit={(ev) => (ev.preventDefault(), void submit())}>
+      <form onSubmit={(ev) => { ev.preventDefault(); void submit(); }}>
         <FormGrid>
           <FormRow label={t('supplier.name', 'Name')} htmlFor="sf-name" error={e.name?.message} required>
             <Input id="sf-name" autoFocus {...register('name')} />

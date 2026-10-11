@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Device;
+use App\Services\Business\DeviceService;
 use App\Support\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -26,6 +27,13 @@ class ResolveDevice
         }
         if ($device && ! $device->isActive()) {
             return response()->json(['success' => false, 'message' => 'This device has been revoked by an administrator.', 'errors' => (object) [], 'code' => 'device_revoked'], 403);
+        }
+        if ($device && $device->secret_hash !== null) {
+            // Device ids are visible to all members; only the installation holding the secret is that device.
+            $secret = (string) $request->header('X-Device-Secret', '');
+            if ($secret === '' || ! hash_equals($device->secret_hash, DeviceService::hashSecret($secret))) {
+                return response()->json(['success' => false, 'message' => 'This device could not be verified. Register it again.', 'errors' => (object) [], 'code' => 'device_secret_invalid'], 403);
+            }
         }
         $this->tenant->setDevice($device);
         if ($device) {

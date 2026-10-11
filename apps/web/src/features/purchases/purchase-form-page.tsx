@@ -163,7 +163,7 @@ export default function PurchaseFormPage() {
             <FormRow label={t('purchase.date', 'Date')} htmlFor="p-date">
               <Input id="p-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </FormRow>
-            <FormRow label={t('purchase.supplier_bill', 'Supplier bill no.')} htmlFor="p-bill">
+            <FormRow label={t('purchase.supplier_bill', 'Supplier bill')} htmlFor="p-bill">
               <Input id="p-bill" value={billNo} onChange={(e) => setBillNo(e.target.value)} />
             </FormRow>
             {docType === 'order' ? (

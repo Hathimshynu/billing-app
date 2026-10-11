@@ -86,6 +86,11 @@ class OperationRegistry
         $device = $op->device;
         $user = $op->userId;
         $p = $op->payload;
+        foreach (['store_id', 'from_store_id'] as $storeKey) {
+            if (isset($p[$storeKey]) && is_string($p[$storeKey]) && ! $this->tenant->canAccessStore($p[$storeKey])) {
+                throw new SyncRejected('forbidden', 'This user is not assigned to the store this operation belongs to.');
+            }
+        }
 
         [$verb] = explode('_', $op->operation, 2);
         if (in_array($expectedEntity, ['category', 'brand', 'unit', 'tax_rate', 'product', 'product_batch', 'customer', 'supplier', 'expense_category', 'restaurant_table', 'jewellery_order', 'coupon'], true)) {

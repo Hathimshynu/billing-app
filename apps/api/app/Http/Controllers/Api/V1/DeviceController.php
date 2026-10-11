@@ -36,9 +36,13 @@ class DeviceController extends Controller
             'store_id' => ['nullable', 'uuid'],
             'platform' => ['nullable', 'string', 'max:60'],
         ]);
-        $device = $this->lock->transaction((string) $this->tenant->businessId(), fn () => $this->devices->register($data, $request->userAgent()));
+        $result = $this->lock->transaction(
+            (string) $this->tenant->businessId(),
+            fn () => $this->devices->register($data, $request->userAgent(), $request->header('X-Device-Secret')),
+        );
 
-        return ApiResponse::ok($device->toSyncArray(), 'Device registered.');
+        // The plain secret is returned only when it is issued; the server keeps its hash.
+        return ApiResponse::ok($result['device']->toSyncArray() + ($result['secret'] !== null ? ['device_secret' => $result['secret']] : []), 'Device registered.');
     }
 
     public function revoke(string $id): JsonResponse

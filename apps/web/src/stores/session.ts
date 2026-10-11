@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { uuidv7, type Business, type Device, type Store } from '@shopdesk/shared';
 import { ApiError, NetworkError, apiData, setApiContext, setUnauthorizedHandler } from '@/lib/api';
 import { createVerifier, verifyPassword } from '@/lib/auth/offline';
@@ -80,7 +81,7 @@ async function openBusiness(account: Account, membership: Membership): Promise<B
   const biz: Business = stored ?? business;
   const store = await resolveStore(database, membership);
 
-  setApiContext({ token: account.token, businessId: business.id, deviceId });
+  setApiContext({ token: account.token, businessId: business.id, deviceId, deviceSecret: (await getMeta<string>('device_secret', database)) ?? null });
   setRuntime({
     businessId: business.id,
     userId: account.user_id,
@@ -102,18 +103,47 @@ async function openBusiness(account: Account, membership: Membership): Promise<B
     businessId: business.id,
     deviceId,
     ensureDevice: async () => {
-      if (await getMeta<boolean>('device_registered', database)) return;
-      const device = await apiData<Device>('/devices/register', {
+      // Registered devices hold a secret; devices registered before secrets existed get one now.
+      if ((await getMeta<boolean>('device_registered', database)) && (await getMeta<string>('device_secret', database))) return;
+      const device = await apiData<Device & { device_secret?: string }>('/devices/register', {
         body: { device_id: deviceId, name: deviceName(), platform: navigator.platform || null, store_id: (await getMeta<string>('store_id', database)) ?? null },
       });
+      if (device.device_secret) {
+        await setMeta('device_secret', device.device_secret, database);
+        setApiContext({ deviceSecret: device.device_secret });
+      }
       await setMeta('device_code', device.code, database);
       await setMeta('device_registered', true, database);
       if (device.store_id) await setMeta('store_id', device.store_id, database);
       patchRuntime({ deviceCode: device.code, ...(device.store_id ? { storeId: device.store_id } : {}) });
     },
     onAuthError: () => useSession.setState({ authExpired: true }),
+    onAccessRevoked: () => void revokeLocalAccess(account.user_id, business.id),
   });
   return database;
+}
+
+/**
+ * The server says this user lost access to the business (removed or disabled). Forget the business
+ * on this device for that user and drop the offline sign-in verifier when no business is left, so a
+ * former employee cannot keep working offline. Unsynced records stay in the business database and
+ * sync when an authorised user opens the business here.
+ */
+async function revokeLocalAccess(userId: string, businessId: string): Promise<void> {
+  const account = await globalDb.accounts.get(userId);
+  if (account) {
+    const memberships = account.memberships.filter((m) => m.business.id !== businessId);
+    await globalDb.accounts.put({ ...account, memberships, verifier: memberships.length ? account.verifier : null, last_business_id: null });
+  }
+  const session = useSession.getState();
+  if (session.businessId === businessId) {
+    session.closeBusiness();
+    useSession.setState({
+      account: session.account ? { ...session.account, memberships: session.account.memberships.filter((m) => m.business.id !== businessId) } : null,
+      setupError: null,
+    });
+  }
+  toast.error('Your access to this business was removed by an administrator. Changes not yet synced stay on this device.', { duration: 15000 });
 }
 
 async function resolveStore(database: BusinessDb, membership: Membership): Promise<Store | undefined> {
@@ -187,7 +217,7 @@ export const useSession = create<SessionState>((set, get) => ({
       if (!(error instanceof NetworkError)) throw error;
       const account = await globalDb.accounts.where('email').equalsIgnoreCase(email.trim()).first();
       if (!account?.verifier) {
-        throw new Error('You are offline. The first sign-in on this device needs an internet connection.');
+        throw new Error('You are offline. The first sign-in on this device needs an internet connection.', { cause: error });
       }
       if (!(await verifyPassword(password, account.verifier))) {
         throw new ApiError('These credentials do not match our records.', 422, { email: ['These credentials do not match our records.'] });
@@ -216,7 +246,7 @@ export const useSession = create<SessionState>((set, get) => ({
     if (account) await globalDb.accounts.update(account.user_id, { token: null });
     await setGlobalMeta('current_user_id', null);
     get().closeBusiness();
-    setApiContext({ token: null, businessId: null, deviceId: null });
+    setApiContext({ token: null, businessId: null, deviceId: null, deviceSecret: null });
     set({ status: 'signed_out', account: null, authExpired: false });
   },
 

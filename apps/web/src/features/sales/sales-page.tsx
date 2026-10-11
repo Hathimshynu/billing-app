@@ -32,7 +32,6 @@ export default function SalesPage() {
       .filter((s) => s.doc_type === 'invoice' && !s.deleted_at && (viewAll || s.created_by === userId))
       .reverse()
       .sortBy('occurred_at');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.from, range.to]);
 
   const rows = (sales ?? []).filter((s) => {

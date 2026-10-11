@@ -53,6 +53,29 @@ class TenancyAndRbacTest extends TestCase
         $this->assertSame('Private Customer B', $this->inTenant($businessB, fn () => Customer::query()->find($secret)->name));
     }
 
+    public function test_forging_another_members_user_id_does_not_escalate_privileges(): void
+    {
+        [$owner, $business, $ownerToken] = $this->createOwner();
+        [$cashier, $cashierToken] = $this->addMember($business, 'cashier');
+        $device = $this->registerDevice($cashierToken, $business);
+
+        // A cashier device claims the owner performed a catalogue change the cashier may not make.
+        $forged = (string) Str::uuid();
+        $response = $this->push($cashierToken, $business, $device, [
+            $this->op('CREATE_CATEGORY', 'category', $forged, ['name' => 'Forged', 'sort_order' => 0, 'active' => true], $owner->id),
+        ]);
+        $response->assertOk()->assertJsonCount(0, 'accepted');
+        $this->assertSame('forbidden', $response->json('rejected.0.code'));
+
+        // Work the cashier is allowed to do is still accepted, and a shared till keeps working:
+        // the owner signing in later pushes the cashier's offline operation under the cashier's rights.
+        $customer = (string) Str::uuid();
+        $ownerDevice = $this->registerDevice($ownerToken, $business);
+        $this->push($ownerToken, $business, $ownerDevice, [
+            $this->op('CREATE_CUSTOMER', 'customer', $customer, ['name' => 'Walk-in Ravi', 'credit_limit' => 0, 'opening_balance' => 0, 'active' => true], $cashier->id),
+        ])->assertJsonCount(1, 'accepted');
+    }
+
     public function test_a_device_of_another_business_cannot_sync(): void
     {
         [, $businessA, $tokenA] = $this->createOwner();

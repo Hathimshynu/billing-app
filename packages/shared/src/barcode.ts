@@ -5,6 +5,8 @@
 
 /** Strip whitespace and control characters a scanner may append (CR/LF/TAB). */
 export function normalizeBarcode(input: string): string {
+  // Scanners may emit control characters (GS1 group separator, CR/LF); strip them.
+  // eslint-disable-next-line no-control-regex
   return input.replace(/[\s\u0000-\u001f]+/g, '').trim();
 }
 

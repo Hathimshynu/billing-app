@@ -25,6 +25,7 @@ use App\Services\Sync\Exceptions\SyncRejected;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -421,7 +422,7 @@ class PurchaseService
             $received = (float) $item->received_qty - (float) $item->returned_qty;
             if ($received > 0) {
                 $this->inventory->move([
-                    'id' => isset($movementIds[$item->id]) && \Illuminate\Support\Str::isUuid($movementIds[$item->id]) ? $movementIds[$item->id] : null,
+                    'id' => isset($movementIds[$item->id]) && Str::isUuid($movementIds[$item->id]) ? $movementIds[$item->id] : null,
                     'store_id' => $purchase->store_id, 'product_id' => $item->product_id, 'variant_id' => $item->variant_id,
                     'batch_id' => $item->batch_id, 'type' => 'PURCHASE_RETURN', 'qty_out' => $received, 'unit_cost' => $item->unit_cost,
                     'reference_type' => 'purchase_cancel', 'reference_id' => $purchase->id, 'reference_no' => $purchase->purchase_number,

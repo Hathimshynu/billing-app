@@ -313,7 +313,7 @@ function addMonths(date: string, months: number): string {
 /** Cancel an invoice (requires sales.delete): reverses stock and the customer's balance locally. */
 export async function cancelSale(saleId: string, reason: string): Promise<void> {
   const database = db();
-  await mutate([database.sales, database.inventory_movements, database.stock_levels, database.product_serials, database.customer_ledger], async () => {
+  await mutate([database.sales, database.products, database.inventory_movements, database.stock_levels, database.product_serials, database.customer_ledger], async () => {
     const sale = await database.sales.get(saleId);
     if (!sale || sale.status === 'cancelled') return;
     const wasInvoice = sale.doc_type === 'invoice' && sale.status === 'completed';
@@ -384,7 +384,7 @@ export async function createSaleReturn(saleId: string, lines: ReturnLineInput[],
   const rt = runtime();
   const database = db();
   return mutate(
-    [database.sales, database.sale_returns, database.inventory_movements, database.stock_levels, database.product_serials, database.customer_ledger, database.number_blocks],
+    [database.sales, database.products, database.sale_returns, database.inventory_movements, database.stock_levels, database.product_serials, database.customer_ledger, database.number_blocks],
     async () => {
       const sale = await database.sales.get(saleId);
       if (!sale) throw new Error('Invoice not found');

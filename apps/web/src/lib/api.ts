@@ -34,6 +34,8 @@ export interface ApiContext {
   token?: string | null;
   businessId?: string | null;
   deviceId?: string | null;
+  /** Issued by the server at device registration; proves this installation is the device. */
+  deviceSecret?: string | null;
 }
 
 let context: ApiContext = {};
@@ -73,6 +75,7 @@ export async function apiRequest<T = unknown>(path: string, options: RequestOpti
   if (ctx.token) headers.Authorization = `Bearer ${ctx.token}`;
   if (ctx.businessId) headers['X-Business-Id'] = ctx.businessId;
   if (ctx.deviceId) headers['X-Device-Id'] = ctx.deviceId;
+  if (ctx.deviceId && ctx.deviceSecret) headers['X-Device-Secret'] = ctx.deviceSecret;
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
 
   const controller = new AbortController();

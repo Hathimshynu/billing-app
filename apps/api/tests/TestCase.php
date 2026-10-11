@@ -70,12 +70,16 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** @return array<string, string> */
+    /** @var array<string, string> device id → device secret issued at registration */
+    protected array $deviceSecrets = [];
+
     protected function headers(string $token, Business $business, ?string $deviceId = null): array
     {
         return array_filter([
             'Authorization' => 'Bearer '.$token,
             'X-Business-Id' => $business->id,
             'X-Device-Id' => $deviceId,
+            'X-Device-Secret' => $deviceId ? ($this->deviceSecrets[$deviceId] ?? null) : null,
             'Accept' => 'application/json',
         ]);
     }
@@ -83,11 +87,12 @@ abstract class TestCase extends BaseTestCase
     protected function registerDevice(string $token, Business $business, ?string $storeId = null, string $name = 'Counter'): string
     {
         $deviceId = (string) Str::uuid();
-        $this->postJson('/api/v1/devices/register', array_filter([
+        $response = $this->postJson('/api/v1/devices/register', array_filter([
             'device_id' => $deviceId,
             'name' => $name,
             'store_id' => $storeId,
         ]), $this->headers($token, $business))->assertOk();
+        $this->deviceSecrets[$deviceId] = (string) $response->json('data.device_secret');
 
         return $deviceId;
     }
@@ -179,7 +184,8 @@ abstract class TestCase extends BaseTestCase
         $productId = (string) Str::uuid();
         $store = $this->defaultStore($business);
         $this->push($token, $business, $deviceId, [
-            $this->op('CREATE_PRODUCT', 'product', $productId, $this->productPayload($overrides), $userId),
+            // Same GST 18% rate the sale helper bills, so the server's tax verification agrees.
+            $this->op('CREATE_PRODUCT', 'product', $productId, $this->productPayload($overrides + ['tax_rate_id' => $this->gstRate($business, 18)->id]), $userId),
             $this->op('CREATE_STOCK_ADJUSTMENT', 'stock_adjustment', (string) Str::uuid(), [
                 'store_id' => $store->id,
                 'type' => 'opening_stock',

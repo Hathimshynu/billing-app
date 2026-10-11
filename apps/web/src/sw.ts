@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst, NetworkOnly } from 'workbox-strategies';
@@ -16,6 +17,9 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
+// The first install takes control of the open page right away, so it is offline-capable without a reload.
+// Updates still wait for the user's confirmation (SKIP_WAITING), never interrupting a sale.
+clientsClaim();
 
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/^\/api\//, /^\/storage\//] }));
 

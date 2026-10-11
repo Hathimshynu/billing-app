@@ -32,7 +32,7 @@ export function toPayload<T extends Record<string, unknown>>(entity: T, omit: st
 
 /** Generic create for master data: local write + CREATE_* operation in one transaction. */
 export async function createEntity<T extends { id: string }>(
-  table: Table<any, any>,
+  table: Table,
   operation: SyncOperationName,
   entity: T,
   payload: Record<string, unknown> = toPayload(entity as unknown as Record<string, unknown>),
@@ -49,7 +49,7 @@ export async function createEntity<T extends { id: string }>(
  * real conflicts instead of overwriting another device's edits.
  */
 export async function updateEntity<T extends { id: string; version: number }>(
-  table: Table<any, any>,
+  table: Table,
   operation: SyncOperationName,
   id: string,
   patch: Partial<T>,
@@ -68,7 +68,7 @@ export async function updateEntity<T extends { id: string; version: number }>(
   });
 }
 
-export async function deleteEntity(table: Table<any, any>, operation: SyncOperationName, id: string): Promise<void> {
+export async function deleteEntity(table: Table, operation: SyncOperationName, id: string): Promise<void> {
   await mutate([table], async () => {
     const current = await table.get(id);
     if (!current) return;

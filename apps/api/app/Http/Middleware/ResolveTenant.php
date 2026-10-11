@@ -35,7 +35,7 @@ class ResolveTenant
         $business = $member ? Business::query()->find($businessId) : null;
         if (! $member || ! $business || ! $member->isActive() || $business->status !== 'active') {
             // Same response for "not found" and "not a member" so business ids cannot be probed.
-            return response()->json(['success' => false, 'message' => 'You do not have access to this business.', 'errors' => (object) []], 403);
+            return response()->json(['success' => false, 'message' => 'You do not have access to this business.', 'errors' => (object) [], 'code' => 'business_access_denied'], 403);
         }
 
         $this->tenant->set($business, $user, $member, $member->effectivePermissions());

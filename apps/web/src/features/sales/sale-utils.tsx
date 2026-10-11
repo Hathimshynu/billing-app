@@ -22,6 +22,15 @@ export const REVIEW_FLAG_LABELS: Record<string, string> = {
   credit_without_customer: 'Credit sale without customer',
   credit_without_permission: 'Credit given without permission',
   over_returned: 'Returned more than sold',
+  price_override_without_permission: 'Sold below catalogue price without permission',
+  tax_mismatch: 'Tax rate differs from the product tax rate',
+  negative_line_without_permission: 'Returned lines entered without refund permission',
+  loyalty_over_redeemed: 'More loyalty points redeemed than available',
+  loyalty_invalid: 'Loyalty redeemed without a customer or while disabled',
+  loyalty_mismatch: 'Loyalty points recalculated by the server',
+  invalid_coupon: 'Invalid, expired or used-up coupon applied',
+  serial_mismatch: 'IMEI/serial does not belong to the product sold',
+  returned_after_cancel: 'Returned after the invoice was cancelled',
 };
 
 /** Status chips: cancelled / payment status / provisional number / waiting to sync / review flags. */

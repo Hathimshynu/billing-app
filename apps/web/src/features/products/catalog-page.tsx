@@ -152,7 +152,7 @@ function Categories() {
   };
 
   return (
-    <ListShell canEdit={canEdit} addLabel={t('catalog.add_category', 'Add category')} onAdd={() => (setErrors({}), setEditing({ id: null, name: '', color: '', sort_order: rows?.length ?? 0, active: true }))}>
+    <ListShell canEdit={canEdit} addLabel={t('catalog.add_category', 'Add category')} onAdd={() => { setErrors({}); setEditing({ id: null, name: '', color: '', sort_order: rows?.length ?? 0, active: true }); }}>
       {(rows ?? []).map((c) => (
         <Row
           key={c.id}
@@ -164,7 +164,7 @@ function Categories() {
           }
           subtitle={`${c.count} ${t('product.count', 'products')}`}
           badges={!c.active ? <Badge variant="outline">{t('product.inactive', 'Inactive')}</Badge> : null}
-          onEdit={canEdit ? () => (setErrors({}), setEditing({ id: c.id, name: c.name, color: c.color ?? '', sort_order: c.sort_order, active: c.active })) : undefined}
+          onEdit={canEdit ? () => { setErrors({}); setEditing({ id: c.id, name: c.name, color: c.color ?? '', sort_order: c.sort_order, active: c.active }); } : undefined}
           onDelete={
             can('products.delete')
               ? async () => {
@@ -219,13 +219,13 @@ function Brands() {
     if (await guarded(() => (editing.id ? updateBrand(editing.id, parsed.data) : createBrand(parsed.data)), t('catalog.saved', 'Saved'))) setEditing(null);
   };
   return (
-    <ListShell canEdit={canEdit} addLabel={t('catalog.add_brand', 'Add brand')} onAdd={() => (setErrors({}), setEditing({ id: null, name: '', active: true }))}>
+    <ListShell canEdit={canEdit} addLabel={t('catalog.add_brand', 'Add brand')} onAdd={() => { setErrors({}); setEditing({ id: null, name: '', active: true }); }}>
       {(rows ?? []).map((b) => (
         <Row
           key={b.id}
           title={b.name}
           badges={!b.active ? <Badge variant="outline">{t('product.inactive', 'Inactive')}</Badge> : null}
-          onEdit={canEdit ? () => (setErrors({}), setEditing({ id: b.id, name: b.name, active: b.active })) : undefined}
+          onEdit={canEdit ? () => { setErrors({}); setEditing({ id: b.id, name: b.name, active: b.active }); } : undefined}
           onDelete={
             can('products.delete')
               ? async () => {
@@ -272,13 +272,13 @@ function Units() {
     if (await guarded(() => (editing.id ? updateUnit(editing.id, parsed.data) : createUnit(parsed.data)), t('catalog.saved', 'Saved'))) setEditing(null);
   };
   return (
-    <ListShell canEdit={canEdit} addLabel={t('catalog.add_unit', 'Add unit')} onAdd={() => (setErrors({}), setEditing({ id: null, code: '', name: '', allow_decimal: false }))}>
+    <ListShell canEdit={canEdit} addLabel={t('catalog.add_unit', 'Add unit')} onAdd={() => { setErrors({}); setEditing({ id: null, code: '', name: '', allow_decimal: false }); }}>
       {(rows ?? []).map((u) => (
         <Row
           key={u.id}
           title={`${u.code} — ${u.name}`}
           subtitle={u.allow_decimal ? t('catalog.decimal', 'Decimal quantities allowed') : t('catalog.whole', 'Whole quantities')}
-          onEdit={canEdit ? () => (setErrors({}), setEditing({ id: u.id, code: u.code, name: u.name, allow_decimal: u.allow_decimal })) : undefined}
+          onEdit={canEdit ? () => { setErrors({}); setEditing({ id: u.id, code: u.code, name: u.name, allow_decimal: u.allow_decimal }); } : undefined}
           onDelete={
             can('products.delete')
               ? async () => {
@@ -329,7 +329,7 @@ function Taxes() {
     if (await guarded(() => (editing.id ? updateTaxRate(editing.id, parsed.data) : createTaxRate(parsed.data)), t('catalog.saved', 'Saved'))) setEditing(null);
   };
   return (
-    <ListShell canEdit={canEdit} addLabel={t('catalog.add_tax', 'Add tax rate')} onAdd={() => (setErrors({}), setEditing({ id: null, name: '', kind: 'gst', rate: null, cess_rate: 0, components: [], is_default: false, active: true }))}>
+    <ListShell canEdit={canEdit} addLabel={t('catalog.add_tax', 'Add tax rate')} onAdd={() => { setErrors({}); setEditing({ id: null, name: '', kind: 'gst', rate: null, cess_rate: 0, components: [], is_default: false, active: true }); }}>
       {(rows ?? []).map((x) => (
         <Row
           key={x.id}
@@ -341,7 +341,7 @@ function Taxes() {
               {!x.active ? <Badge variant="outline">{t('product.inactive', 'Inactive')}</Badge> : null}
             </>
           }
-          onEdit={canEdit ? () => (setErrors({}), setEditing({ id: x.id, name: x.name, kind: x.kind, rate: x.rate, cess_rate: x.cess_rate, components: x.components ?? [], is_default: x.is_default, active: x.active })) : undefined}
+          onEdit={canEdit ? () => { setErrors({}); setEditing({ id: x.id, name: x.name, kind: x.kind, rate: x.rate, cess_rate: x.cess_rate, components: x.components ?? [], is_default: x.is_default, active: x.active }); } : undefined}
           onDelete={
             canEdit
               ? async () => {

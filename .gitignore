@@ -28,3 +28,8 @@ apps/web/playwright/.cache/
 Thumbs.db
 *.log
 npm-debug.log*
+
+# Local databases
+apps/api/database/*.sqlite
+apps/api/database/*.sqlite-journal
+apps/web/dev-dist/

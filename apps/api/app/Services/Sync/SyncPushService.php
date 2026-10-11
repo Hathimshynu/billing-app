@@ -7,6 +7,7 @@ use App\Models\Contracts\SyncableEntity;
 use App\Models\Device;
 use App\Models\SyncConflict;
 use App\Models\SyncOperation;
+use App\Services\Audit\AuditLogger;
 use App\Services\Sync\Exceptions\SyncRejected;
 use App\Support\Tenancy\BusinessLock;
 use App\Support\Tenancy\TenantContext;
@@ -33,6 +34,7 @@ class SyncPushService
         private readonly TenantContext $tenant,
         private readonly OperationRegistry $registry,
         private readonly BusinessLock $lock,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -71,6 +73,13 @@ class SyncPushService
             $opId = $raw['operation_id'];
 
             $existing = SyncOperation::query()->withoutGlobalScopes()->where('operation_id', $opId)->first();
+            if ($existing && $existing->status === 'rejected' && $existing->business_id === $businessId) {
+                // A rejected operation changed nothing, so a retry (after the data or a permission
+                // was corrected) is evaluated again. The earlier rejection stays in the audit log.
+                $this->audit->log('SYNC_RETRY', $existing->entity_type, $existing->entity_id, ['error_code' => $existing->error_code, 'error' => $existing->error_message], ['operation_id' => $opId]);
+                $existing->delete();
+                $existing = null;
+            }
             if ($existing) {
                 $this->replay($existing, $businessId, $accepted, $rejected, $conflicts, $serverChanges);
 
@@ -80,7 +89,15 @@ class SyncPushService
             $userId = $raw['user_id'];
             if (! array_key_exists($userId, $members)) {
                 $member = BusinessUser::query()->with(['user', 'role.permissions'])->where('user_id', $userId)->first();
-                $members[$userId] = [$member, $member ? $member->effectivePermissions() : []];
+                $authorPermissions = $member ? $member->effectivePermissions() : [];
+                // The author id comes from the device and cannot be trusted on its own: an operation
+                // recorded by another member on a shared till is allowed only for permissions that
+                // BOTH its author and the authenticated user pushing it hold. Forging another
+                // user's id therefore never grants more than the pushing user already has.
+                $permissions = $userId === $this->tenant->userId()
+                    ? $authorPermissions
+                    : array_values(array_intersect($authorPermissions, $this->tenant->permissions()));
+                $members[$userId] = [$member, $permissions];
             }
             [$member, $permissions] = $members[$userId];
 

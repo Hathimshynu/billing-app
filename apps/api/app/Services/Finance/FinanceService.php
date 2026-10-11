@@ -84,6 +84,12 @@ class FinanceService
             'ledger_id' => ['nullable', 'uuid'],
         ]);
         $customer = Customer::withTrashed()->find($data['customer_id']) ?? throw SyncRejected::dependency('Customer');
+        if (! empty($data['sale_id'])) {
+            $linked = Sale::query()->find($data['sale_id']) ?? throw SyncRejected::dependency('Invoice');
+            if ($linked->customer_id !== $customer->id || ! $linked->isInvoice()) {
+                throw SyncRejected::invalid(['sale_id' => ['The invoice does not belong to this customer.']]);
+            }
+        }
         $number = $this->numbering->finalize('customer_payment', 'customer_payment', $id, $data['receipt_number'] ?? null, $data['number_status'] ?? null, $data['number_block_id'] ?? null, $data['number_sequence'] ?? null, $data['payment_date'], $device, $data['store_id'] ?? null);
         $payment = CustomerPayment::query()->create([
             'id' => $id,
@@ -143,6 +149,12 @@ class FinanceService
             'ledger_id' => ['nullable', 'uuid'],
         ]);
         $supplier = Supplier::withTrashed()->find($data['supplier_id']) ?? throw SyncRejected::dependency('Supplier');
+        if (! empty($data['purchase_id'])) {
+            $linked = Purchase::query()->find($data['purchase_id']) ?? throw SyncRejected::dependency('Purchase');
+            if ($linked->supplier_id !== $supplier->id) {
+                throw SyncRejected::invalid(['purchase_id' => ['The purchase does not belong to this supplier.']]);
+            }
+        }
         $number = $this->numbering->finalize('supplier_payment', 'supplier_payment', $id, $data['payment_number'] ?? null, $data['number_status'] ?? null, $data['number_block_id'] ?? null, $data['number_sequence'] ?? null, $data['payment_date'], $device, $data['store_id'] ?? null);
         $payment = SupplierPayment::query()->create([
             'id' => $id,

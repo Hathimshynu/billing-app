@@ -1,47 +1,26 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# ShopDesk API — working notes
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+Laravel 13 / PHP 8.3 REST API for the offline-first ShopDesk POS. Read `../../docs/ARCHITECTURE.md`
+and `../../docs/OFFLINE_SYNC.md` before changing sync, stock, ledgers or numbering.
 
-## Prerequisites
+## Rules
+- All writes (REST and sync push) go through `App\Services\Sync\OperationRegistry`; controllers stay thin.
+- Every write transaction acquires `BusinessLock` first (monotonic change feed). Use `$lock->transaction()`.
+- Business-owned models extend `TenantModel`/`SyncModel` (UUIDs, `BusinessScope`, change feed).
+- Stock changes only via `InventoryService::move()` (immutable `inventory_movements`); balances only via `LedgerService`.
+- Never reject financial operations for business-rule anomalies made offline — add `review_flags` and notify.
+- Keep `App\Domain\Pricing` and `packages/shared/src/tax.ts` in lockstep; extend `packages/shared/fixtures/pricing-cases.json` for new cases.
+- Re-check permissions server side (`permission:` middleware / `TenantContext::authorize`). Never trust the client.
+- Never log passwords, tokens or payment details.
 
-Verify that PHP and Composer are available:
-
-```sh
-php -v
-composer -V
+## Commands
+```bash
+export XDEBUG_MODE=off          # WAMP has Xdebug loaded; it slows everything down
+php artisan test                # 78 feature/unit tests
+composer analyse                # PHPStan level 5 (Larastan)
+composer lint                   # Pint (composer format to fix)
+php artisan migrate:fresh --seed  # demo data: owner@shopdesk.test / Password123
 ```
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
-
-macOS:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
-
-Windows PowerShell:
-
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
-
-Linux:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+Model casts use the `$casts` property (not the `casts()` method) so Larastan understands them.
+Edit PHP with precise edits — no bulk regex replacement across files.

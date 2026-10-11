@@ -26,6 +26,8 @@ export interface EngineOptions {
   ensureDevice: () => Promise<void>;
   /** Called when the server rejects our credentials. */
   onAuthError?: () => void;
+  /** Called when the server says the user no longer has access to this business. */
+  onAccessRevoked?: () => void;
 }
 
 /**
@@ -194,6 +196,10 @@ export class SyncEngine {
       if (error instanceof ApiError && error.status === 401) {
         useSyncStore.getState().set({ status: 'auth', lastError: 'Your session expired. Sign in to resume syncing.' });
         opts.onAuthError?.();
+      } else if (error instanceof ApiError && error.status === 403 && error.code === 'business_access_denied') {
+        // The user was removed or disabled: stop retrying; unsynced work stays on the device.
+        useSyncStore.getState().set({ status: 'auth', lastError: error.message });
+        opts.onAccessRevoked?.();
       } else if (error instanceof NetworkError) {
         useSyncStore.getState().set({ status: 'offline', online: false, lastError: null });
         this.scheduleRetry();

@@ -1,1 +1,10 @@
-{}
+{
+  "nav": { "catalog": "श्रेणियाँ और कर", "customers": "ग्राहक", "home": "होम", "menu": "मेनू", "more": "और", "pos": "बिलिंग", "products": "उत्पाद", "purchases": "खरीद", "quotations": "कोटेशन", "sales": "बिक्री", "suppliers": "आपूर्तिकर्ता" },
+  "pos": { "pay": "भुगतान", "hold": "रोकें", "total": "कुल", "subtotal": "उप-योग", "discount": "छूट", "tax": "कर", "cart": "कार्ट", "walk_in": "सामान्य ग्राहक", "search_placeholder": "खोजें या बारकोड, SKU, IMEI स्कैन करें…", "items": "आइटम", "cart_empty": "कार्ट खाली है", "cart_empty_hint": "बिलिंग शुरू करने के लिए बारकोड स्कैन करें या उत्पाद चुनें।", "held_bills": "रोके गए बिल", "send_kot": "KOT भेजें", "round_off": "राउंड ऑफ", "charges": "शुल्क", "clear_cart": "कार्ट खाली करें" },
+  "payment": { "title": "भुगतान", "complete": "बिक्री पूरी करें", "change": "वापसी राशि", "cash_received": "प्राप्त नकद", "exact": "पूरी राशि", "split": "विभाजित", "remaining": "शेष", "amount_due": "देय राशि" },
+  "sync": { "offline_mode": "ऑफ़लाइन मोड", "offline_explainer": "बिक्री सामान्य रूप से जारी है। इंटरनेट आने पर बदलाव अपने-आप सिंक हो जाएँगे।", "pending_short": "बाकी", "now": "अभी सिंक करें", "center": "सिंक केंद्र", "online": "ऑनलाइन", "session_expired": "आपका सत्र समाप्त हो गया। बिक्री जारी है — सिंक के लिए फिर से साइन इन करें।", "pending": "सिंक होना बाकी" },
+  "common": { "save": "सहेजें", "cancel": "रद्द करें", "delete": "हटाएँ", "edit": "संपादित करें", "back": "वापस", "apply": "लागू करें", "loading": "लोड हो रहा है…", "new": "नया", "add": "जोड़ें", "remove": "हटाएँ", "notes": "टिप्पणी" },
+  "receipt": { "print": "प्रिंट", "new_sale": "नई बिक्री", "sale_complete": "बिक्री पूरी हुई", "total": "कुल", "paid": "भुगतान किया", "change": "वापसी राशि", "provisional": "अस्थायी नंबर के साथ ऑफ़लाइन सहेजा गया। सिंक होने पर अंतिम इनवॉइस नंबर मिलेगा।" },
+  "auth": { "sign_in": "साइन इन करें" },
+  "dash": { "new_sale": "नई बिक्री", "today_sales": "आज की बिक्री" }
+}
